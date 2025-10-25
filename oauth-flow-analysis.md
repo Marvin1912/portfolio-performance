@@ -100,6 +100,29 @@ The critical token extraction occurs in `AuthorizationCode.parse()` method at:
 
 This method parses the callback URL query parameters to extract the authorization `code` that is subsequently exchanged for an access token.
 
+## Token Validity Periods
+
+### Authorization Code Validity
+- **Duration**: 5-10 minutes (industry standard for OAuth 2.0)
+- **Purpose**: Single-use code for token exchange
+- **Security**: Short lifespan prevents code replay attacks
+- **Consumption**: Immediately exchanged upon receipt (within milliseconds)
+
+**Note**: The authorization code validity is determined by the identity provider (`https://accounts.portfolio-performance.info/oidc`) and is not configurable within Portfolio Performance.
+
+### Access Token Validity
+- **Duration**: Determined by identity provider (typically 1 hour)
+- **Calculation**: `expiresAt = System.currentTimeMillis() + expiresIn * 1000`
+- **Storage**: Stored in `AccessToken` object with expiration timestamp
+- **Automatic Refresh**: Uses refresh token when access token expires
+
+### Token Validation Logic
+```java
+// TokenStorage.java:105-106
+var isExpired = token.getExpiresAt() < System.currentTimeMillis();
+return isExpired ? Optional.empty() : Optional.of(token);
+```
+
 ## Verification
 
 The captured callback URL perfectly matches the implemented flow:
@@ -107,3 +130,4 @@ The captured callback URL perfectly matches the implemented flow:
 - `/success` endpoint matches the `ENDPOINT_SUCCESS` constant
 - Parameter structure matches the OAuth 2.0 authorization code flow
 - Issuer URL confirms Portfolio Performance's identity provider
+- Authorization code is immediately exchanged for access token within the same request cycle
