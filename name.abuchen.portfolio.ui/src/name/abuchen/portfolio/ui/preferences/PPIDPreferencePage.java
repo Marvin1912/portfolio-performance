@@ -58,6 +58,19 @@ public class PPIDPreferencePage extends PreferencePage
 
         new DescriptionFieldEditor(Messages.PrefDescriptionPortfolioPerformanceID, area);
 
+        // Add redirect URL information
+        var redirectLabel = new Label(area, SWT.NONE);
+        GridDataFactory.swtDefaults().span(2, 1).applyTo(redirectLabel);
+        redirectLabel.setText("OAuth Redirect URLs:");
+
+        var redirectInfo = new Label(area, SWT.WRAP);
+        GridDataFactory.fillDefaults().grab(true, false).hint(400, SWT.DEFAULT).span(2, 1).applyTo(redirectInfo);
+        redirectInfo.setText("During login, the application will use one of these local redirect URLs:\n" +
+                         "• http://localhost:49968/success\n" +
+                         "• http://localhost:55968/success\n" +
+                         "• http://localhost:59968/success\n" +
+                         "These URLs are used only to receive the OAuth callback and are not accessible externally.");
+
         var label = new Label(area, SWT.NONE);
         label.setText(Messages.LabelUser);
 
