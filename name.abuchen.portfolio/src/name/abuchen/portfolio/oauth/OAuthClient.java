@@ -146,6 +146,7 @@ public class OAuthClient // NOSONAR
                         + "&scope=" + URLEncoder.encode(config.authScope, StandardCharsets.UTF_8) //
                         + "&state=" + state;
 
+        PortfolioLog.info("OAuth: Authorization URL: " + authzUrl); //$NON-NLS-1$
         browser.accept(authzUrl);
 
         // setup error handling
