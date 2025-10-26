@@ -136,6 +136,8 @@ public class CallbackServer
     {
         if (this.server == null)
             throw new IllegalArgumentException(Messages.OAuthCallbackServerNotRunning);
-        return String.format("http://%s:%d%s", HOSTNAME, this.server.getAddress().getPort(), ENDPOINT_SUCCESS); //$NON-NLS-1$
+        var endpoint = String.format("http://%s:%d%s", HOSTNAME, this.server.getAddress().getPort(), ENDPOINT_SUCCESS); //$NON-NLS-1$
+        PortfolioLog.info("OAuth: Redirect URL: " + endpoint); //$NON-NLS-1$
+        return endpoint;
     }
 }
