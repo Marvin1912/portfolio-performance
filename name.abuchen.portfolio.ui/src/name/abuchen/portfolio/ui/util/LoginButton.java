@@ -18,11 +18,13 @@ import org.eclipse.swt.widgets.Shell;
 
 import name.abuchen.portfolio.oauth.AuthenticationException;
 import name.abuchen.portfolio.oauth.OAuthClient;
+import name.abuchen.portfolio.oauth.OAuthURLInfo;
 import name.abuchen.portfolio.online.Factory;
 import name.abuchen.portfolio.online.impl.PortfolioPerformanceFeed;
 import name.abuchen.portfolio.ui.Messages;
 import name.abuchen.portfolio.ui.PortfolioPlugin;
 import name.abuchen.portfolio.ui.UIConstants;
+import name.abuchen.portfolio.ui.util.OAuthInfoDialog;
 import name.abuchen.portfolio.ui.util.swt.ActiveShell;
 import name.abuchen.portfolio.ui.util.swt.StyledLabel;
 import name.abuchen.portfolio.util.DesktopAPI;
@@ -101,8 +103,8 @@ public class LoginButton
                         {
                             try
                             {
-                                var urlInfo = oauthClient.prepareOAuthURLInfo();
-                                var infoDialog = new OAuthInfoDialog(getShell(),
+                                OAuthURLInfo urlInfo = oauthClient.prepareOAuthURLInfo();
+                                OAuthInfoDialog infoDialog = new OAuthInfoDialog(getShell(),
                                     urlInfo.getAuthorizationUrl(), urlInfo.getCallbackUrl());
 
                                 if (infoDialog.open() == org.eclipse.jface.window.Window.OK)

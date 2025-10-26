@@ -17,10 +17,12 @@ import name.abuchen.portfolio.model.Client;
 import name.abuchen.portfolio.model.Security;
 import name.abuchen.portfolio.oauth.AuthenticationException;
 import name.abuchen.portfolio.oauth.OAuthClient;
+import name.abuchen.portfolio.oauth.OAuthURLInfo;
 import name.abuchen.portfolio.ui.Messages;
 import name.abuchen.portfolio.ui.PortfolioPlugin;
 import name.abuchen.portfolio.ui.util.DesktopAPI;
 import name.abuchen.portfolio.ui.util.LogoManager;
+import name.abuchen.portfolio.ui.util.OAuthInfoDialog;
 
 public class AuthenticationRequiredDialog
 {
@@ -68,7 +70,13 @@ public class AuthenticationRequiredDialog
         {
             try
             {
-                OAuthClient.INSTANCE.signIn(DesktopAPI::browse);
+                OAuthURLInfo urlInfo = OAuthClient.INSTANCE.prepareOAuthURLInfo();
+                OAuthInfoDialog infoDialog = new OAuthInfoDialog(shell, urlInfo.getAuthorizationUrl(), urlInfo.getCallbackUrl());
+
+                if (infoDialog.open() == org.eclipse.jface.window.Window.OK)
+                {
+                    OAuthClient.INSTANCE.signInWithInfo(DesktopAPI::browse, urlInfo);
+                }
             }
             catch (AuthenticationException e)
             {
