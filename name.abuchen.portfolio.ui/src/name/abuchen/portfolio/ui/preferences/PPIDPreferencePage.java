@@ -1,6 +1,10 @@
 package name.abuchen.portfolio.ui.preferences;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.layout.GridDataFactory;
@@ -13,6 +17,12 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Text;
+
+import name.abuchen.portfolio.PortfolioLog;
+import name.abuchen.portfolio.oauth.impl.CallbackServer;
+import name.abuchen.portfolio.oauth.impl.OAuthConfig;
+import name.abuchen.portfolio.oauth.impl.PKCE;
 
 import name.abuchen.portfolio.oauth.AccessToken;
 import name.abuchen.portfolio.oauth.AuthenticationException;
@@ -37,6 +47,8 @@ public class PPIDPreferencePage extends PreferencePage
     private Label plan;
     private Button action;
     private Button refresh;
+    private Text redirectUrlText;
+    private Text authorizationUrlText;
 
     private final Runnable updateListener = () -> Display.getDefault().asyncExec(this::triggerUpdate);
 
@@ -58,18 +70,27 @@ public class PPIDPreferencePage extends PreferencePage
 
         new DescriptionFieldEditor(Messages.PrefDescriptionPortfolioPerformanceID, area);
 
-        // Add redirect URL information
-        var redirectLabel = new Label(area, SWT.NONE);
-        GridDataFactory.swtDefaults().span(2, 1).applyTo(redirectLabel);
-        redirectLabel.setText("OAuth Redirect URLs:");
+        // Add OAuth URL information
+        var urlLabel = new Label(area, SWT.NONE);
+        GridDataFactory.swtDefaults().span(2, 1).applyTo(urlLabel);
+        urlLabel.setText("OAuth URLs:");
 
-        var redirectInfo = new Label(area, SWT.WRAP);
-        GridDataFactory.fillDefaults().grab(true, false).hint(400, SWT.DEFAULT).span(2, 1).applyTo(redirectInfo);
-        redirectInfo.setText("During login, the application will use one of these local redirect URLs:\n" +
-                         "• http://localhost:49968/success\n" +
-                         "• http://localhost:55968/success\n" +
-                         "• http://localhost:59968/success\n" +
-                         "These URLs are used only to receive the OAuth callback and are not accessible externally.");
+        // Redirect URL
+        var redirectUrlLabel = new Label(area, SWT.NONE);
+        redirectUrlLabel.setText("Redirect URL:");
+
+        redirectUrlText = new Text(area, SWT.BORDER | SWT.READ_ONLY);
+        GridDataFactory.fillDefaults().grab(true, false).span(1, 1).applyTo(redirectUrlText);
+
+        // Authorization URL
+        var authUrlLabel = new Label(area, SWT.NONE);
+        authUrlLabel.setText("Authorization URL:");
+
+        authorizationUrlText = new Text(area, SWT.BORDER | SWT.MULTI | SWT.WRAP | SWT.READ_ONLY | SWT.V_SCROLL);
+        GridDataFactory.fillDefaults().grab(true, false).span(1, 1).hint(400, 60).applyTo(authorizationUrlText);
+
+        // Prepare OAuth URLs
+        prepareOAuthUrls();
 
         var label = new Label(area, SWT.NONE);
         label.setText(Messages.LabelUser);
@@ -177,6 +198,57 @@ public class PPIDPreferencePage extends PreferencePage
         {
             user.setText(EMPTY_USER_TEXT);
             plan.setText(EMPTY_USER_TEXT);
+        }
+    }
+
+    private void prepareOAuthUrls()
+    {
+        try
+        {
+            var config = OAuthConfig.load();
+            if (config == null)
+            {
+                redirectUrlText.setText("OAuth not configured");
+                authorizationUrlText.setText("OAuth not configured");
+                return;
+            }
+
+            // Start a temporary callback server to get the redirect URL
+            var tempCallbackServer = new CallbackServer();
+            tempCallbackServer.start();
+            var redirectUri = tempCallbackServer.getSuccessEndpoint();
+            tempCallbackServer.stop();
+
+            redirectUrlText.setText(redirectUri);
+
+            // Build authorization URL
+            var pkce = PKCE.generate();
+            var state = UUID.randomUUID().toString();
+
+            @SuppressWarnings("nls")
+            String authzUrl = config.baseUrl + config.authEndpoint //
+                            + "?response_type=code" //
+                            + "&prompt=" + URLEncoder.encode("login consent", StandardCharsets.UTF_8) //
+                            + "&code_challenge=" + pkce.getCodeChallenge() //
+                            + "&code_challenge_method=" + PKCE.CODE_CHALLENGE_METHOD //
+                            + "&client_id=" + config.clientId //
+                            + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8) //
+                            + "&scope=" + URLEncoder.encode(config.authScope, StandardCharsets.UTF_8) //
+                            + "&state=" + state;
+
+            authorizationUrlText.setText(authzUrl);
+        }
+        catch (IOException e)
+        {
+            PortfolioLog.error(e);
+            redirectUrlText.setText("Error: Could not start callback server");
+            authorizationUrlText.setText("Error: Could not prepare authorization URL");
+        }
+        catch (Exception e)
+        {
+            PortfolioLog.error(e);
+            redirectUrlText.setText("Error: " + e.getMessage());
+            authorizationUrlText.setText("Error: " + e.getMessage());
         }
     }
 }
