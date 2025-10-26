@@ -107,7 +107,49 @@ public class OAuthClient // NOSONAR
         clearAccessToken(config.apiResource);
     }
 
+    public OAuthURLInfo prepareOAuthURLInfo() throws AuthenticationException
+    {
+        if (config == null)
+            throw new AuthenticationException(Messages.OAuthNotConfigured);
+
+        var pkce = PKCE.generate();
+        var state = UUID.randomUUID().toString();
+
+        // Pre-create a temporary callback server just to get the port
+        try
+        {
+            callbackServer.start();
+            var redirectUri = callbackServer.getSuccessEndpoint();
+
+            // Build authorization URL
+            @SuppressWarnings("nls")
+            String authzUrl = config.baseUrl + config.authEndpoint //
+                            + "?response_type=code" //
+                            + "&prompt=" + URLEncoder.encode("login consent", StandardCharsets.UTF_8) //
+                            + "&code_challenge=" + pkce.getCodeChallenge() //
+                            + "&code_challenge_method=" + PKCE.CODE_CHALLENGE_METHOD //
+                            + "&client_id=" + config.clientId //
+                            + "&redirect_uri="
+                            + URLEncoder.encode(callbackServer.getSuccessEndpoint(), StandardCharsets.UTF_8) //
+                            + "&scope=" + URLEncoder.encode(config.authScope, StandardCharsets.UTF_8) //
+                            + "&state=" + state;
+
+            // Store the PKCE and state for later use
+            return new OAuthURLInfo(authzUrl, redirectUri, pkce, state);
+        }
+        catch (IOException e)
+        {
+            throw new AuthenticationException(Messages.OAuthFailedToStartCallbackServer, e);
+        }
+    }
+
     public void signIn(Consumer<String> browser) throws AuthenticationException
+    {
+        OAuthURLInfo info = prepareOAuthURLInfo();
+        signInWithInfo(browser, info);
+    }
+
+    public void signInWithInfo(Consumer<String> browser, OAuthURLInfo info) throws AuthenticationException
     {
         if (ongoingAuthentication != null && !ongoingAuthentication.isDone())
             throw new AuthenticationException(Messages.OAuthOngoingAuthentication);
@@ -116,16 +158,14 @@ public class OAuthClient // NOSONAR
             throw new AuthenticationException(Messages.OAuthNotConfigured);
 
         ongoingAuthentication = new CompletableFuture<>();
-        var pkce = PKCE.generate();
-        var state = UUID.randomUUID().toString();
 
         try
         {
-            callbackServer.start();
-            var redirectUri = callbackServer.getSuccessEndpoint();
-            callbackServer.setCallbackHandler(code -> handleSignInCallback(code, pkce, state, redirectUri));
+            // Server should already be started from prepareOAuthURLInfo
+            var redirectUri = info.getCallbackUrl();
+            callbackServer.setCallbackHandler(code -> handleSignInCallback(code, info.getPkce(), info.getState(), redirectUri));
         }
-        catch (IOException e)
+        catch (Exception e)
         {
             ongoingAuthentication.completeExceptionally(e);
             throw new AuthenticationException(Messages.OAuthFailedToStartCallbackServer, e);
@@ -134,19 +174,7 @@ public class OAuthClient // NOSONAR
         // inform on ongoing authentication
         informListeners();
 
-        @SuppressWarnings("nls")
-        String authzUrl = config.baseUrl + config.authEndpoint //
-                        + "?response_type=code" //
-                        + "&prompt=" + URLEncoder.encode("login consent", StandardCharsets.UTF_8) //
-                        + "&code_challenge=" + pkce.getCodeChallenge() //
-                        + "&code_challenge_method=" + PKCE.CODE_CHALLENGE_METHOD //
-                        + "&client_id=" + config.clientId //
-                        + "&redirect_uri="
-                        + URLEncoder.encode(callbackServer.getSuccessEndpoint(), StandardCharsets.UTF_8) //
-                        + "&scope=" + URLEncoder.encode(config.authScope, StandardCharsets.UTF_8) //
-                        + "&state=" + state;
-
-        browser.accept(authzUrl);
+        browser.accept(info.getAuthorizationUrl());
 
         // setup error handling
 

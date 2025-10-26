@@ -25,6 +25,7 @@ import name.abuchen.portfolio.ui.PortfolioPlugin;
 import name.abuchen.portfolio.ui.UIConstants;
 import name.abuchen.portfolio.ui.util.swt.ActiveShell;
 import name.abuchen.portfolio.ui.util.swt.StyledLabel;
+import name.abuchen.portfolio.util.DesktopAPI;
 
 public class LoginButton
 {
@@ -98,7 +99,28 @@ public class LoginButton
                         }
                         else
                         {
-                            oauthClient.signIn(DesktopAPI::browse);
+                            try
+                            {
+                                var urlInfo = oauthClient.prepareOAuthURLInfo();
+                                var infoDialog = new OAuthInfoDialog(getShell(),
+                                    urlInfo.getAuthorizationUrl(), urlInfo.getCallbackUrl());
+
+                                if (infoDialog.open() == org.eclipse.jface.window.Window.OK)
+                                {
+                                    oauthClient.signInWithInfo(DesktopAPI::browse, urlInfo);
+                                }
+                                else
+                                {
+                                    // User cancelled, stop the callback server
+                                    oauthClient.clearAPIAccessToken();
+                                }
+                            }
+                            catch (AuthenticationException e)
+                            {
+                                PortfolioPlugin.log(e);
+                                MessageDialog.openError(Display.getDefault().getActiveShell(), Messages.LabelError,
+                                                e.getMessage());
+                            }
                         }
                         close();
                     }
