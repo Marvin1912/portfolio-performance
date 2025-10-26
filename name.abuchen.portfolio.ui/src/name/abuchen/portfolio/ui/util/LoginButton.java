@@ -101,27 +101,18 @@ public class LoginButton
                         }
                         else
                         {
-                            try
-                            {
-                                OAuthURLInfo urlInfo = oauthClient.prepareOAuthURLInfo();
-                                OAuthInfoDialog infoDialog = new OAuthInfoDialog(getShell(),
-                                    urlInfo.getAuthorizationUrl(), urlInfo.getCallbackUrl());
+                            OAuthURLInfo urlInfo = oauthClient.prepareOAuthURLInfo();
+                            OAuthInfoDialog infoDialog = new OAuthInfoDialog(getShell(),
+                                urlInfo.getAuthorizationUrl(), urlInfo.getCallbackUrl());
 
-                                if (infoDialog.open() == org.eclipse.jface.window.Window.OK)
-                                {
-                                    oauthClient.signInWithInfo(DesktopAPI::browse, urlInfo);
-                                }
-                                else
-                                {
-                                    // User cancelled, stop the callback server
-                                    oauthClient.clearAPIAccessToken();
-                                }
-                            }
-                            catch (AuthenticationException e)
+                            if (infoDialog.open() == org.eclipse.jface.window.Window.OK)
                             {
-                                PortfolioPlugin.log(e);
-                                MessageDialog.openError(Display.getDefault().getActiveShell(), Messages.LabelError,
-                                                e.getMessage());
+                                oauthClient.signInWithInfo(DesktopAPI::browse, urlInfo);
+                            }
+                            else
+                            {
+                                // User cancelled, stop the callback server
+                                oauthClient.clearAPIAccessToken();
                             }
                         }
                         close();
